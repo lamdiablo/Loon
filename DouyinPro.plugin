@@ -1,0 +1,46 @@
+#!name=Douyin Pro (AdBlock & Clean)
+#!desc=全方位净化抖音体验：去除开屏广告、信息流广告、直播推荐、购物推广及水印增强。
+#!author=NetworkSecExpert
+#!homepage=https://github.com/YourRepo/Loon-Plugins
+#!icon=https://raw.githubusercontent.com/Loon0x00/LoonExampleConfig/master/Icon/Douyin.png
+#!date=2026-01-11 10:00:00
+#!system=iOS,iPadOS,macOS
+
+[General]
+# 这里的通用设置通常由用户主配置决定，插件中一般留空或仅做特殊声明
+
+
+# 1. 阻断显式的广告服务域名
+# 使用 REJECT 策略直接拒绝连接，节省带宽
+DOMAIN-SUFFIX, pangolin-sdk-toutiao.com, REJECT
+DOMAIN-SUFFIX, pangolin-sdk-toutiao-b.com, REJECT
+DOMAIN-SUFFIX, ad.toutiao.com, REJECT
+DOMAIN-SUFFIX, p3-sign.pstatp.com, REJECT # 往往承载广告图片
+DOMAIN-SUFFIX, v3-dy-x.ixigua.com, REJECT # 部分视频广告 CDN
+
+# 2. 阻断数据追踪与埋点
+# 保护隐私，同时减少后台无用请求
+DOMAIN, log.snssdk.com, REJECT
+DOMAIN, mon.snssdk.com, REJECT
+DOMAIN, is.snssdk.com, REJECT
+DOMAIN, toblog.snssdk.com, REJECT
+
+
+# 声明需要进行 SSL 解密的域名
+# 注意：尽量不要使用通配符 *，以免影响系统性能和其他 App
+hostname = aweme.snssdk.com, amemv.com, *.douyin.com, *.snssdk.com, zijieapi.com
+
+
+# 1. 信息流去广告（核心功能）
+# 使用 http-response 并在响应返回 App 前进行修改
+# requires-body=true 是必须的，否则无法读取 JSON 内容
+http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/feed\/ script-path=https://gist.githubusercontent.com/YourUser/YourGistID/raw/douyin_clean.js, requires-body=true, timeout=30, tag=抖音去广告-Feed
+
+# 2. 开屏广告清理
+http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/splash\/ script-path=https://gist.githubusercontent.com/YourUser/YourGistID/raw/douyin_clean.js, requires-body=true, timeout=30, tag=抖音去广告-Splash
+
+# 3. 评论区广告清理
+http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/comment\/list\/ script-path=https://gist.githubusercontent.com/YourUser/YourGistID/raw/douyin_clean.js, requires-body=true, timeout=30, tag=抖音去广告-Comment
+
+# 4. 用户资料页清理（去除“我的订单”、“我的钱包”等推广入口）
+http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/user\/profile\/other\/ script-path=https://gist.githubusercontent.com/YourUser/YourGistID/raw/douyin_clean.js, requires-body=true, timeout=30, tag=抖音去广告-Profile
