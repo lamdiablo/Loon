@@ -1,0 +1,17 @@
+#!name=YouTube 去广告（基础版）
+#!desc=去除YouTube部分广告（首页、搜索、跟踪），视频贴片可能无效。2026年适用性有限。
+
+[MITM]
+hostname = *.youtube.com, *.googlevideo.com, youtubei.googleapis.com, s.youtube.com, www.youtube-nocookie.com
+
+[URL Rewrite]
+# 拦截常见广告和跟踪请求
+^https?://(www|s)\.youtube\.com/(pagead|ptracking|api/stats/ads|generate_204) - reject
+^https?://youtubei\.googleapis\.com/youtubei/v1/player/ad_break - reject
+^https?://s\.youtube\.com/api/stats/qoe\?adcontext - reject
+# 去除视频流中的某些广告参数（尝试绕过低质量强制）
+(^https?://[\w-]+\.googlevideo\.com/.+?)&ctier=L(&.+?) $1$2 302
+^https?://[\w-]+\.googlevideo\.com/(?!videoplayback).+&oad - reject
+
+# 其他常见拦截（可选，根据实际情况启用）
+^https?://.*\.youtube\.com.*(adbreak|adservice).* - reject
