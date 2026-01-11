@@ -1,10 +1,9 @@
 /*
- * 自制 YouTube 去广告核心脚本
- * 包含：强制 JSON 逻辑 + 广告字段清洗
+ * 文件名: my_yt_ads.js
+ * 功能: 强制 YouTube 返回 JSON 格式并清洗广告数据
  */
 
 const method = $request.method;
-const url = $request.url;
 const isRequest = typeof $response === "undefined";
 
 // 1. 【请求阶段】修改 Header，强制 YouTube 返回 JSON
@@ -12,13 +11,15 @@ if (isRequest) {
     // 只有 POST 请求才处理
     if (method === "POST") {
         let headers = $request.headers;
-        // 修改 Accept 和 Content-Type 告诉服务器我们要 JSON
-        // 注意：这并不保证 100% 成功，Google 可能会忽略，但这是唯一简单的办法
-        if (headers["Content-Type"]) headers["Content-Type"] = "application/json";
-        if (headers["Accept"]) headers["Accept"] = "application/json";
         
-        // 移除 Protobuf 相关的标记
-        delete headers["X-Goog-Api-Format-Version"];
+        // 告诉服务器我们要 JSON，不要 Protobuf
+        // 注意：这是关键步骤，如果服务器忽略此 Header，脚本将失效
+        headers["Accept"] = "application/json";
+        headers["Content-Type"] = "application/json";
+        
+        // 移除 Protobuf 版本标记，防止服务器识别为 App 客户端
+        if (headers["X-Goog-Api-Format-Version"]) delete headers["X-Goog-Api-Format-Version"];
+        if (headers["x-goog-api-format-version"]) delete headers["x-goog-api-format-version"];
         
         $done({ headers: headers });
     } else {
@@ -35,44 +36,48 @@ else {
     try {
         obj = JSON.parse(body);
     } catch (e) {
-        console.log("YT AdBlock: 解析 JSON 失败，服务器可能强制返回了 Protobuf");
-        $done({}); // 保持原样返回，避免断网
+        // 如果解析失败，说明 Header 修改未生效，服务器强制返回了二进制数据
+        console.log("YT AdBlock: 解析 JSON 失败，保持原样返回");
+        $done({}); 
         return;
     }
 
-    // 通用去广告递归函数
+    // 递归去广告函数
     function removeAds(item) {
         if (!item) return;
         
-        // 数组处理
+        // 处理数组
         if (Array.isArray(item)) {
             for (let i = item.length - 1; i >= 0; i--) {
                 let subItem = item[i];
-                
-                // 特征匹配：常见的广告渲染器名称
                 let isAd = false;
+                
+                // --- 广告特征匹配 ---
                 if (subItem.adSlotRenderer) isAd = true;
                 if (subItem.playerAd) isAd = true;
                 if (subItem.merchandiseShelfRenderer) isAd = true; // 商品橱窗
                 
-                // 检查 Shorts 广告
+                // Shorts 广告特征
                 if (subItem.reelAdMetadata) isAd = true; 
                 if (subItem.reelPlayerOverlayRenderer && subItem.reelPlayerOverlayRenderer.style === "REEL_PLAYER_OVERLAY_STYLE_ADS") isAd = true;
 
+                // 推广内容/付费内容特征
+                if (subItem.richItemRenderer && subItem.richItemRenderer.content && subItem.richItemRenderer.content.adSlotRenderer) isAd = true;
+
                 if (isAd) {
-                    item.splice(i, 1); // 删除该项
+                    item.splice(i, 1); // 删除广告项
                 } else {
                     removeAds(subItem); // 递归检查子项
                 }
             }
         } 
-        // 对象处理
+        // 处理对象
         else if (typeof item === 'object') {
-            // 针对播放页的具体字段清理
+            // 播放页特定广告字段
             if (item.playerAds) delete item.playerAds;
             if (item.adPlacements) delete item.adPlacements;
             
-            // 遍历所有属性继续递归
+            // 遍历属性继续递归
             for (let key in item) {
                 removeAds(item[key]);
             }
@@ -82,5 +87,6 @@ else {
     // 执行清理
     removeAds(obj);
 
+    // 返回修改后的 JSON
     $done({ body: JSON.stringify(obj) });
 }
