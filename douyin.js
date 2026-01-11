@@ -1,215 +1,152 @@
 /*
- * Douyin AdBlock Script for Loon
+ * 抖音去广告深度优化脚本 (Douyin AdBlock Optimized)
  * 
- * 功能：
- * 1. 去除信息流 (Feed) 中的广告 (is_ads, ad_info, raw_ad_data)
- * 2. 去除开屏 (Splash) 广告预加载
- * 3. 去除评论区 (Comment) 顶部推广
- * 4. 净化用户主页 (Profile) 推广入口
- * 5. (可选) 尝试替换无水印视频源
+ * 核心功能：
+ * 1. 移除信息流 (Feed) 中的硬广 (is_ads)
+ * 2. 移除视频左下角的购物袋/商品卡片 (simple_promotions, commerce_info)
+ * 3. 移除/净化团购锚点与POI定位 (anchors, poi_info)
+ * 4. 移除直播间带货卡片
+ * 5. 移除评论区置顶推广
  * 
- * 配置建议：
- *
- * http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/(feed|splash|comment\/list|user\/profile\/other)\/ script-path=douyin.js, requires-body=true, timeout=30, tag=抖音去广告
- * 
- *
- * hostname = aweme.snssdk.com
+ * 使用建议：配合 Loon/Surge/QX 的 MITM 功能使用
  */
 
 const url = $request.url;
 const method = $request.method;
 let body = $response.body;
-let isModified = false;
 
-// 只有 GET 请求且有 Body 时才处理
+// 预处理：只处理 GET 请求且 Body 不为空的情况
 if (method === "GET" && body) {
     try {
         let obj = JSON.parse(body);
 
-        // 路由分发：根据 URL 关键词调用不同的处理函数
-        if (url.indexOf("/aweme/v1/feed/")!== -1) {
-            processFeed(obj);
-        } else if (url.indexOf("/aweme/v1/splash/")!== -1) {
-            processSplash(obj);
-        } else if (url.indexOf("/aweme/v1/comment/list/")!== -1) {
+        // --- 路由分发 ---
+        if (url.indexOf("/aweme/v1/feed/")!== -1 |
+
+| url.indexOf("/aweme/v1/nearby/feed/")!== -1) {
+            // 处理推荐流和同城流
+            if (obj.aweme_list && Array.isArray(obj.aweme_list)) {
+                obj.aweme_list = processFeed(obj.aweme_list);
+            }
+        } 
+        else if (url.indexOf("/aweme/v1/search/item/")!== -1 |
+
+| url.indexOf("/aweme/v1/general/search/")!== -1) {
+            // 处理搜索结果
+            if (obj.data && Array.isArray(obj.data)) {
+                obj.data = processFeed(obj.data);
+            }
+        } 
+        else if (url.indexOf("/aweme/v1/comment/list/")!== -1) {
+            // 处理评论区
             processComments(obj);
-        } else if (url.indexOf("/aweme/v1/user/profile/other/")!== -1) {
-            processProfile(obj);
         }
 
-        // 如果对象被修改了，重新序列化为字符串并返回
-        if (isModified) {
-            $done({ body: JSON.stringify(obj) });
-        } else {
-            $done({}); // 维持原样
-        }
+        // --- 结束处理 ---
+        $done({ body: JSON.stringify(obj) });
 
     } catch (e) {
-        console.log("Douyin AdBlock Error: " + e);
-        $done({}); // 出错时返回原数据，避免 App 崩溃
+        console.log(" Error: " + e.message);
+        // 出错时返回原数据，防止白屏
+        $done({});
     }
 } else {
     $done({});
 }
 
 /**
- * 处理信息流广告 (Feed)
+ * 视频流核心处理函数
+ * 针对：广告、团购、购物、直播带货
  */
-function processFeed(obj) {
-    if (obj.aweme_list && Array.isArray(obj.aweme_list)) {
-        const initialLength = obj.aweme_list.length;
-        
-        obj.aweme_list = obj.aweme_list.filter(item => {
-            // 1. 显式广告标记
-            if (item.is_ads === true) return false;
-            
-            // 2. 存在广告信息对象
-            if (item.ad_info) return false;
-            
-            // 3. 存在原始广告数据 (通常是加密字符串)
-            if (item.raw_ad_data) return false;
-            
-            // 4. 直播间推广 (aweme_type 101 通常为直播)
-            // 可根据需要开启：如果不看直播推荐可取消注释
-            // if (item.aweme_type === 101 &&!item.author.following_count) return false;
+function processFeed(list) {
+    return list.filter(item => {
+        // === 1. 硬广过滤 ===
+        if (item.is_ads === true) return false;
+        if (item.raw_ad_data |
 
-            // 5. 视频下方的购物/游戏推广标签 (不删视频，只删标签)
-            if (item.promotions && item.promotions.length > 0) {
-                delete item.promotions;
-            }
-            if (item.status && item.status.review_result) {
-                delete item.status.review_result; // 有时包含审核推广信息
-            }
+| item.ad_info) return false;
 
-            // 6. 尝试无水印处理
-            handleWatermark(item);
-
-            return true;
-        });
-
-        if (obj.aweme_list.length < initialLength) {
-            isModified = true;
-            console.log(` Feed cleaned: removed ${initialLength - obj.aweme_list.length} ads`);
+        // === 2. 购物/电商广告 (Image 2 对应场景) ===
+        // 过滤视频左下角挂载的“黄色购物车”或商品标签
+        if (item.simple_promotions && item.simple_promotions.length > 0) {
+            // 策略：直接移除带货视频（如果你不想看任何带货内容）
+            return false; 
         }
-    }
-}
-
-/**
- * 处理开屏广告 (Splash)
- * 策略：清空数据，让 App 认为没有开屏配置
- */
-function processSplash(obj) {
-    if (obj.data) {
-        // 清空 data 及其子项
-        if (Array.isArray(obj.data)) {
-            obj.data =;
-        } else {
-            obj.data = {};
+        // 过滤电商推广视频
+        if (item.commerce_info && item.commerce_info.head_image_url) {
+            return false;
         }
-        
-        // 强制设置状态码
-        obj.status_code = 0;
-        
-        // 清理可能存在的预加载列表
-        if (obj.splash_list) obj.splash_list =;
-        
-        isModified = true;
-        console.log(" Splash config cleaned");
-    }
-}
 
-/**
- * 处理评论区广告 (Comments)
- * 策略：移除置顶的推广评论或广告 Banner
- */
-function processComments(obj) {
-    if (obj.comments && Array.isArray(obj.comments)) {
-        const initialLength = obj.comments.length;
-        
-        obj.comments = obj.comments.filter(comment => {
-            // 1. 评论本身被标记为广告
-            if (comment.is_ad === true) return false;
-            
-            // 2. 包含广告链接或组件
-            if (comment.ad_info) return false;
-            
-            // 3. 这里的 1通常代表置顶的活动推广
-            if (comment.item_type === 1) return false;
-
-            return true;
-        });
-
-        if (obj.comments.length < initialLength) {
-            isModified = true;
-            console.log(" Comments cleaned");
+        // === 3. 直播间带货过滤 ===
+        if (item.aweme_type === 101) { 
+            // 如果直播间包含商品推广，则移除
+            if (item.room && item.room.has_commerce_goods) return false;
+            if (item.room && item.room.promotions && item.room.promotions.length > 0) return false;
         }
-    }
-    
-    // 移除评论区顶部的 Banner 广告区
-    if (obj.ad_info) {
-        delete obj.ad_info;
-        isModified = true;
-    }
-}
 
-/**
- * 处理用户主页 (Profile)
- * 策略：移除“我的订单”、“我的钱包”等非内容项
- */
-function processProfile(obj) {
-    if (obj.user) {
-        // 移除带货橱窗等入口
-        if (obj.user.card_entries && Array.isArray(obj.user.card_entries)) {
-            obj.user.card_entries = obj.user.card_entries.filter(entry => {
-                // 过滤掉包含“购”、“买”、“推广”等关键词的入口
-                const title = entry.title |
+        // === 4. 团购/本地生活广告 (Image 1 对应场景) ===
+        // 策略：团购通常通过 anchors (锚点) 或 poi_info (定位) 展示
+        
+        // 清洗锚点 (Anchors) - 视频底部的横条
+        if (item.anchors && Array.isArray(item.anchors)) {
+            const originalAnchorCount = item.anchors.length;
+            item.anchors = item.anchors.filter(anchor => {
+                // 关键词黑名单：匹配到这些词的锚点都会被移除
+                const blockKeywords = ["团购", "购买", "充值", "游戏", "下载", "详情", "领取"];
+                
+                if (anchor.keyword) {
+                    if (blockKeywords.some(k => anchor.keyword.includes(k))) return false;
+                }
+                
+                // 类型黑名单 (根据经验总结的商业化锚点Type)
+                // 3: 购物, 1001: 团购, 2000+: 游戏/应用下载
+                const blockTypes = ; 
+                if (blockTypes.includes(anchor.type)) return false;
 
-| "";
-                if (title.includes("购") |
+                // 检查 Schema 协议
+                if (anchor.schema && (anchor.schema.includes("dianping") |
 
-| title.includes("橱窗")) return false;
+| anchor.schema.includes("meituan"))) {
+                    return false;
+                }
+
                 return true;
             });
-            isModified = true;
+
+            // 如果清洗后没有锚点，删除该字段，界面更清爽
+            if (item.anchors.length === 0) delete item.anchors;
         }
-        
-        // 移除企业号/机构认证带来的营销组件
-        if (obj.user.enterprise_verify_reason) {
-            delete obj.user.enterprise_verify_reason;
-            isModified = true;
+
+        // 清洗 POI 信息 (Poi Info) - 视频左下角的定位
+        if (item.poi_info) {
+            // 如果 POI 包含团购券、外卖信息，则删除 POI 字段
+            // 注意：这里只删除定位信息，保留视频内容。
+            // 如果你想连视频一起删，可以将下面的 delete 改为 return false
+            if (item.poi_info.is_waimai |
+
+| item.poi_info.voucher_release_areas |
+| item.poi_info.cost) {
+                delete item.poi_info;
+            }
         }
-    }
+
+        return true; // 保留该视频
+    });
 }
 
 /**
- * 辅助函数：处理水印 (Watermark)
- * 策略：尝试将 play_addr 替换为高码率无水印流
+ * 评论区处理函数
  */
-function handleWatermark(item) {
-    if (item.video) {
-        let originLink = null;
-        
-        // 尝试从 play_addr_h264 获取 (有时包含无水印高码率)
-        if (item.video.play_addr_h264 && item.video.play_addr_h264.url_list) {
-            originLink = item.video.play_addr_h264.url_list;
-        } 
-        // 备选：从 720p/1080p 列表中寻找
-        else if (item.video.bit_rate && Array.isArray(item.video.bit_rate)) {
-            for (let rate of item.video.bit_rate) {
-                if (rate.play_addr && rate.play_addr.url_list) {
-                    originLink = rate.play_addr.url_list;
-                    break; // 找到第一个可用源即可
-                }
-            }
-        }
-        
-        // 替换主播放地址
-        if (originLink && item.video.play_addr) {
-            item.video.play_addr.url_list = originLink;
-            item.video.download_addr.url_list = originLink; // 同时修改下载地址
-            // 注意：不设置 isModified = true，因为修改过深，只做局部替换引用
-            // 如果需要强制生效，请取消下面注释（会增加 CPU 开销）
-            // isModified = true; 
-        }
+function processComments(obj) {
+    // 移除评论区顶部的 Banner 广告
+    if (obj.ad_info) delete obj.ad_info;
+
+    // 移除评论列表中的推广/置顶评论
+    if (obj.comments && Array.isArray(obj.comments)) {
+        obj.comments = obj.comments.filter(comment => {
+            if (comment.is_ad === true) return false;
+            if (comment.item_type === 1) return false; // 通常是置顶推广
+            return true;
+        });
     }
 }
