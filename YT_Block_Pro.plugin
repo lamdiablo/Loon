@@ -1,22 +1,27 @@
-#!name=YouTube AdBlock (Expert Config)
-#!desc=移除 YouTube 视频流广告、首页横幅及 Shorts 广告。请务必安装并信任 CA 证书，且在 Loon 设置中开启 MITM 功能。
-#!author=Community Optimized
-#!icon=https://raw.githubusercontent.com/Loolin233/Loon/main/Icon/YouTube.png
-#!date=2026-01-11
+#!name=YouTube去广告(本地版)
+#!desc=移除YouTube视频贴片、瀑布流及搜索广告。使用本地脚本处理，不依赖远程仓库。
+#!author=LocalUser
+#!icon=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/YouTube.png
+#!date=2025-01-11
 
-[Rule]
-# 阻断 QUIC 协议，迫使 YouTube 使用 TCP (这是去广告生效的关键)
-AND, ((PROTOCOL,UDP), (DEST-PORT,443)), REJECT
 
-[Rewrite]
-# 这里的正则用于匹配 YouTube 的广告组件 URL
-^https:\/\/[\s\S]*\.googlevideo\.com/.*&(oad|ctier) _ REJECT
+# 1. 阻断 UDP (QUIC) 协议
+# 这一步至关重要：强制 YouTube 降级使用 TCP，确保数据能被脚本解析（JSON格式）
+AND,((DOMAIN-SUFFIX,googlevideo.com), (PROTOCOL,UDP)),REJECT
+AND,((DOMAIN,youtubei.googleapis.com), (PROTOCOL,UDP)),REJECT
 
-[Script]
-# 引用社区长期维护的高质量脚本 (推荐使用 Maasea 或类似的稳定源)
-# 注意：以下脚本地址仅为示例，建议使用 GitHub 上 stars 最多的活跃项目链接
-http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel\/reel_watch_sequence|guide|account\/get_setting) script-path=https://raw.githubusercontent.com/Maasea/sgmodule/master/Script/Youtube/youtube.js, requires-body=true, binary-body-mode=true, tag=YouTube去广告
 
-[MITM]
-# 必须对以下域名进行主机名解密
-hostname = *.googlevideo.com, youtubei.googleapis.com, *.youtube.com
+# 2. 静态 URL 拒绝
+# 直接拒绝已知的广告加载请求和统计上报
+^https?:\/\/[\w-]+\.googlevideo\.com\/initplayback.+&oad - REJECT-IMG
+^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/log_event\? - REJECT
+^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/stats\/ads\? - REJECT
+
+
+# 3. 注入本地脚本
+# 注意：requires-body=true 是必须的
+http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|guide|account\/get_setting) script-path=youtube_ads.js, requires-body=true, tag=YouTube_AdBlock
+
+[MitM]
+# 4. 解密域名
+hostname = %APPEND% youtubei.googleapis.com, *.googlevideo.com
