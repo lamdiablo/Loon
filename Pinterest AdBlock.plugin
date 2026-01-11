@@ -13,4 +13,4 @@ hostname = *.pinterest.com, *.pinimg.com, ads.pinterest.com, analytics.pinterest
 
 [Script]
 # Pinterest 去推广 Pins（引用外部 js 文件）
-Pinterest 去推广 = type=http-response, pattern=^https?://.*\.pinterest\.com/.*resource/.*Resource/get$, requires-body=true, max-size=-1, timeout=60, script-path=pinterest_remove_promoted.js
+Pinterest 去推广 = type=http-response, pattern=^https?://.*\.pinterest\.com/.*resource/.*Resource/get$, requires-body=true, max-size=-1, timeout=60, script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/pinterest_remove_grok.js
