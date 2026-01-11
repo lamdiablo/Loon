@@ -1,12 +1,13 @@
 /*
-Pinterest 去推广 Pins 优化脚本（2026 版）
+Pinterest 去推广 Pins 修复稳定版
 适用于 Loon
-更彻底过滤 promoted / ad / shopping ad 等内容
-添加了 tracking_params 中的 ad_id / creative_id 判断（常见于残留广告）
+优先过滤常见广告字段，避免误伤导致加载失败
 */
 
 let url = $request.url;
-if (!url.includes("/resource/") && !url.includes("/v3/") && !url.includes("/v5/")) {
+
+// 只针对核心 Feed 接口生效（避免误触其他 API 导致崩溃）
+if (!url.includes("resource/") || !url.includes("Resource/get")) {
   $done({});
 }
 
@@ -17,65 +18,52 @@ if (!body) {
 
 try {
   let obj = JSON.parse(body);
-  
-  // 处理主数据路径：resource_response.data（最常见）
+  let modified = false;
+  let filteredCount = 0;
+
+  // 主路径：resource_response.data（最常见，首页/搜索 Feed）
   if (obj.resource_response && Array.isArray(obj.resource_response.data)) {
     let originalData = obj.resource_response.data;
-    let filteredCount = 0;
     let filteredData = originalData.filter(item => {
-      // 核心推广标志
+      // 严格广告字段（这些几乎100%是推广）
       if (item.is_promoted === true || item.promoted === true || item.is_promoted_ad === true) {
         filteredCount++;
         return false;
       }
-      // 其他常见广告字段
-      if (item.ad_meta || item.ads_metadata || item.ads_info || item.promotion || item.promoter || item.promoted_by) {
+      if (item.ad_meta || item.ads_metadata || item.ads_info || item.promotion) {
         filteredCount++;
         return false;
       }
-      // tracking_params 中含有广告专属 ID（能捕获部分隐形推广）
-      if (item.tracking_params && (item.tracking_params.ad_id || item.tracking_params.creative_id || item.tracking_params.campaign_id || item.tracking_params.upid)) {
+      // tracking_params 中的广告 ID（捕获隐形推广）
+      if (item.tracking_params && (item.tracking_params.ad_id || item.tracking_params.creative_id || item.tracking_params.campaign_id)) {
         filteredCount++;
         return false;
       }
-      // 类型为广告
-      if (item.type === "promoted_pin" || item.type === "ad" || item.type === "promoted" || item.type === "shopping_ad" || item.type === "native_ad") {
-        filteredCount++;
-        return false;
-      }
-      // 其他购物/推广相关（可选强烈过滤，如果内容变少可注释掉下面两行）
-      if (item.native_ad_data || item.shopping_data || item.product_group_promotion) {
+      // 类型明确为广告
+      if (item.type && (item.type.includes("promoted") || item.type.includes("ad"))) {
         filteredCount++;
         return false;
       }
       return true;
     });
-    
-    obj.resource_response.data = filteredData;
-    // 可选：打印过滤数量，便于调试（Loon 日志可见）
-    // console.log(`Pinterest 过滤了 ${filteredCount} 个广告项`);
+
+    // 防止过滤后数组完全为空（可能导致 App 白屏或错误）
+    if (filteredData.length === 0 && originalData.length > 0) {
+      console.log("Pinterest 脚本：检测到全过滤，保留原数据避免崩溃");
+      // 不修改，保留原数据
+    } else {
+      obj.resource_response.data = filteredData;
+      modified = true;
+    }
   }
-  
-  // 处理备用路径：resource.response.data 或 resource.data
-  if (obj.resource && obj.resource.response && Array.isArray(obj.resource.response.data)) {
-    obj.resource.response.data = obj.resource.response.data.filter(item => !(
-      item.is_promoted === true || 
-      item.promoted === true || 
-      (item.tracking_params && (item.tracking_params.ad_id || item.tracking_params.creative_id))
-    ));
+
+  if (modified) {
+    body = JSON.stringify(obj);
+    // console.log(`Pinterest 过滤了 ${filteredCount} 个广告项`); // 调试用，可取消注释看日志
   }
-  
-  // 处理 stories 或 results 等嵌套数组（部分视频/推荐广告）
-  if (obj.resource_response && Array.isArray(obj.resource_response.stories)) {
-    obj.resource_response.stories = obj.resource_response.stories.filter(item => !(item.is_promoted === true));
-  }
-  if (obj.resource_response && obj.resource_response.results && Array.isArray(obj.resource_response.results)) {
-    obj.resource_response.results = obj.resource_response.results.filter(item => !(item.is_promoted === true));
-  }
-  
-  body = JSON.stringify(obj);
+
   $done({ body });
 } catch (e) {
-  console.log("Pinterest 去广告脚本错误: " + e);
-  $done({});
+  console.log("Pinterest 脚本解析错误，放行原响应: " + e);
+  $done({}); // 出错直接放行，避免返回无效 body 导致 App 崩溃
 }
