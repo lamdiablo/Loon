@@ -1,30 +1,33 @@
-#!name=YouTube 去广告（优化版2026）
-#!desc=增强拦截视频闪现广告、下方banner，效果有限，建议结合Premium使用。
+#!name=YouTube 去广告（超级优化版2026）
+#!desc=针对sponsored banner、pre-roll闪现、Gemini/GoDaddy推广增强拦截。纯Rewrite，效果有限，建议导入社区Script插件。
 
 [MITM]
-hostname = *.youtube.com, *.googlevideo.com, youtubei.googleapis.com, s.youtube.com, www.youtube-nocookie.com, redirector.googlevideo.com
+hostname = *.youtube.com, *.googlevideo.com, youtubei.googleapis.com, s.youtube.com, www.youtube-nocookie.com, redirector.googlevideo.com, ads.youtube.com, *.ytimg.com
 
 [URL Rewrite]
-# 原有基础拦截（保留并优化）
+# 基础拦截（保留）
 ^https?://(www|s)\.youtube\.com/(pagead|ptracking|api/stats/ads|generate_204) - reject
 ^https?://youtubei\.googleapis\.com/youtubei/v1/player/ad_break - reject
 ^https?://s\.youtube\.com/api/stats/qoe\?adcontext - reject
 
-# 增强视频流参数清洗（减少ad注入和低质强制）
+# 视频流参数深度清洗（减少ad注入、闪现、低质）
 (^https?://[\w-]+\.googlevideo\.com/.+?)&ctier=L(&.+?) $1$2 302
 (^https?://[\w-]+\.googlevideo\.com/.+?)&oad=.+?(&|$) $1 302
 (^https?://[\w-]+\.googlevideo\.com/.+?)&adformat=.+?(&|$) $1 302
+(^https?://[\w-]+\.googlevideo\.com/.+?)&adslots=.+?(&|$) $1 302
 
-# 新增拦截（针对midroll、delayplay、promotion banner、sponsored ads）
-^https?://www\.youtube\.com/get_midroll_info - reject
-^https?://www\.youtube\.com/api/stats/delayplay - reject
+# 增强针对sponsored/promotion/banner（新重点）
+^https?://.*\.youtube\.com/youtubei/v1/(browse|next|search|reel|player).*(adplacements|playerads|adsignals|promotion|sponsor|overlay|card).* - reject
+^https?://.*\.youtube\.com/get_midroll_info - reject
+^https?://.*\.youtube\.com/api/stats/delayplay - reject
 ^https?://youtubei\.googleapis\.com/youtubei/v1/player/ads - reject
 ^https?://s\.youtube\.com/api/stats/ads - reject
-^https?://.*\.youtube\.com.*(adslots|player_ads|vast|adservice|promotion|sponsor|banner).* - reject
+^https?://.*\.youtube\.com.*(adslots|vast|adservice|promoted|banner|sponsored).* - reject
 
-# 其他激进拦截（可选启用，若视频加载异常请注释掉）
-# ^https?://.*\.youtube\.com.*ad.* - reject
-# ^https?://.*\.googlevideo\.com/initplayback.* - reject
+# 额外激进（针对Gemini/GoDaddy类推广，可测试启用/禁用）
+^https?://.*\.youtube\.com/promo.* - reject
+^https?://.*\.youtube\.com/api/stats/watchtime.*ad - reject
+^https?://ads\.youtube\.com.* - reject
 
-# 空响应更快拦截某些跟踪（可选）
+# 空响应优化
 ^https?://.*\.youtube\.com/generate_204 - reject-204
