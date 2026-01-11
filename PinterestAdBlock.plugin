@@ -13,7 +13,7 @@ hostname = *.pinterest.com, *.pinimg.com, aa.pinterest.com, ads.pinterest.com, a
 ^https?://widgets\.pinterest\.com/ reject
 ^https?://trc\.taboola\.com/ reject
 # 额外阻塞含 ads 路径的请求（谨慎，防止误伤）
-^https?://.*\.pinterest\.com/.*ads.* reject
+# ^https?://.*\.pinterest\.com/.*ads.* reject
 
 [Script]
 # Pinterest 去推广 Pins（优化版，覆盖更多接口）
