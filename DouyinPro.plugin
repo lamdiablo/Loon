@@ -1,34 +1,45 @@
-#!name=抖音去广告 Pro (强力版)
-#!desc=深度移除抖音信息流广告、团购视频、购物带货、直播推荐及开屏广告。优化了对团购和电商内容的识别逻辑。
-#!author=OptimizedUser
+#!name=抖音去广告 (终极强力版)
+#!desc=【零容忍模式】全方位移除抖音开屏、信息流广告、团购探店、直播带货、商品橱窗、游戏推广。逻辑激进，只要带货一律屏蔽。
+#!author=UltimateOptimizer
 #!icon=https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/source/icon/douyin.png
-#!date=2026-01-11 20:00:00
+#!date=2026-01-12 12:00:00
 
-# 
-# 1. 阻断显式的广告服务域名 (节省宽带)
-DOMAIN-SUFFIX, pangolin-sdk-toutiao.com, REJECT
-DOMAIN-SUFFIX, pangolin-sdk-toutiao-b.com, REJECT
-DOMAIN-SUFFIX, ad.toutiao.com, REJECT
-DOMAIN-SUFFIX, ads.snssdk.com, REJECT
-DOMAIN-KEYWORD, -ad-sign.byteimg.com, REJECT
-DOMAIN-KEYWORD, -ad.byteimg.com, REJECT
-DOMAIN-SUFFIX, p3-sign.pstatp.com, REJECT
-DOMAIN-SUFFIX, v3-dy-x.ixigua.com, REJECT
+# ====================
+# 策略组与主机名
+# ====================
 
-# 2. 阻断开屏广告 (通过 URL 拒绝)
-URL-REGEX, ^https?:\/\/.*douyin\.com\/aweme\/v\d\/splash\/, REJECT
-# 阻断直播间购物袋预加载
-URL-REGEX, ^https?:\/\/.*douyin\.com\/aweme\/v\d\/promotion\/, REJECT
+hostname = *.douyin.com, *.amemv.com, *.snssdk.com, aweme.snssdk.com
 
-#
-# 1. 信息流与搜索去广告 (核心：团购与购物清洗)
-http-response ^https?:\/\/.*douyin\.com\/aweme\/v\d\/(feed|nearby|search|general) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/douyin-optimized.js, requires-body=true, timeout=60, tag=抖音信息流净化
+# ====================
+# 脚本重写 (Script)  
+# ====================
 
-# 2. 评论区去广告
+# 1. 核心信息流 (推荐、同城、搜索) - 开启 requires-body 以读取并修改内容
+http-response ^https?:\/\/.*douyin\.com\/aweme\/v\d\/(feed|nearby|search|general) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/douyin-optimized.js, requires-body=true, timeout=60, tag=抖音全域净化
+
+# 2. 评论区净化 - 去除评论区广告、置顶推广
 http-response ^https?:\/\/.*douyin\.com\/aweme\/v\d\/comment\/list script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/douyin-optimized.js, requires-body=true, timeout=60, tag=抖音评论净化
 
-# 3. 用户资料页清理
+# 3. 用户中心净化 - 去除“我的”页面的推广入口
 http-response ^https?:\/\/.*douyin\.com\/aweme\/v\d\/user\/profile\/other script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/douyin-optimized.js, requires-body=true, timeout=60, tag=抖音主页净化
 
-#
-hostname = *.douyin.com, *.amemv.com, *.snssdk.com, aweme.snssdk.com
+# 4. 屏蔽直播间购物袋轮询 (提升性能)
+http-request ^https?:\/\/.*douyin\.com\/aweme\/v\d\/promotion\/ - reject
+
+# ====================
+# URL 拒绝规则 (Rule)
+# ====================
+
+# 1. 开屏广告 (Splash Ads)
+URL-REGEX, ^https?:\/\/.*douyin\.com\/aweme\/v\d\/splash\/, REJECT
+URL-REGEX, ^https?:\/\/.*douyin\.com\/aweme\/v\d\/launch\/log\/, REJECT  
+
+# 2. 广告 SDK 与 监测域名 (直接阻断连接，省电省流)
+DOMAIN-SUFFIX, pangolin-sdk-toutiao.com, REJECT
+DOMAIN-SUFFIX, pangolin-sdk-toutiao-b.com, REJECT
+DOMAIN-SUFFIX, ads.snssdk.com, REJECT
+DOMAIN-SUFFIX, p3-sign.pstatp.com, REJECT
+DOMAIN-SUFFIX, ad.toutiao.com, REJECT
+DOMAIN-SUFFIX, volces.com, REJECT
+DOMAIN-KEYWORD, -ad-sign.byteimg.com, REJECT
+DOMAIN-KEYWORD, -ad.byteimg.com, REJECT
