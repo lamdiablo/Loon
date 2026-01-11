@@ -1,15 +1,18 @@
-#!name=自制YouTube去广告
-#!desc=基于核心API拦截的去广告脚本 (仅供学习与测试)
+#!name=自制YouTube去广告(修正版)
+#!desc=包含请求头修改(强制JSON)与响应清洗，需配合本地脚本使用。
 #!author=SelfMade
 #!icon=https://www.youtube.com/s/mobile/hires/assets/home/youtube_192.png
 
 [Rule]
-# 1. 拦截 HTTP3/QUIC 协议，强制 YouTube 走 TCP 以便 MitM 解密
+# 拦截 HTTP3/QUIC，强制走 TCP (必须)
 AND,((OR,((DOMAIN-SUFFIX,youtube.com),(DOMAIN-SUFFIX,googlevideo.com))), (PROTOCOL,UDP)),REJECT
 
 [MitM]
 hostname = *.googlevideo.com, youtubei.googleapis.com
 
 [Script]
-# 拦截 YouTube 核心 API 响应
-http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(player|browse|next|search) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/MyYoutubeAds.js, script-text-body=true, requires-body=true, tag=YT去广告核心
+# 拦截请求：修改 Header 强制 JSON
+http-request ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel) script-path=my_yt_ads.js, requires-body=false, tag=YT_Req
+
+# 拦截响应：清洗广告数据
+http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel) script-path=my_yt_ads.js, requires-body=true, tag=YT_Res
