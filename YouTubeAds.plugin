@@ -1,17 +1,30 @@
-#!name=YouTube 去广告（基础版）
-#!desc=去除YouTube部分广告（首页、搜索、跟踪），视频贴片可能无效。2026年适用性有限。
+#!name=YouTube 去广告（优化版2026）
+#!desc=增强拦截视频闪现广告、下方banner，效果有限，建议结合Premium使用。
 
 [MITM]
-hostname = *.youtube.com, *.googlevideo.com, youtubei.googleapis.com, s.youtube.com, www.youtube-nocookie.com
+hostname = *.youtube.com, *.googlevideo.com, youtubei.googleapis.com, s.youtube.com, www.youtube-nocookie.com, redirector.googlevideo.com
 
 [URL Rewrite]
-# 拦截常见广告和跟踪请求
+# 原有基础拦截（保留并优化）
 ^https?://(www|s)\.youtube\.com/(pagead|ptracking|api/stats/ads|generate_204) - reject
 ^https?://youtubei\.googleapis\.com/youtubei/v1/player/ad_break - reject
 ^https?://s\.youtube\.com/api/stats/qoe\?adcontext - reject
-# 去除视频流中的某些广告参数（尝试绕过低质量强制）
-(^https?://[\w-]+\.googlevideo\.com/.+?)&ctier=L(&.+?) $1$2 302
-^https?://[\w-]+\.googlevideo\.com/(?!videoplayback).+&oad - reject
 
-# 其他常见拦截（可选，根据实际情况启用）
-^https?://.*\.youtube\.com.*(adbreak|adservice).* - reject
+# 增强视频流参数清洗（减少ad注入和低质强制）
+(^https?://[\w-]+\.googlevideo\.com/.+?)&ctier=L(&.+?) $1$2 302
+(^https?://[\w-]+\.googlevideo\.com/.+?)&oad=.+?(&|$) $1 302
+(^https?://[\w-]+\.googlevideo\.com/.+?)&adformat=.+?(&|$) $1 302
+
+# 新增拦截（针对midroll、delayplay、promotion banner、sponsored ads）
+^https?://www\.youtube\.com/get_midroll_info - reject
+^https?://www\.youtube\.com/api/stats/delayplay - reject
+^https?://youtubei\.googleapis\.com/youtubei/v1/player/ads - reject
+^https?://s\.youtube\.com/api/stats/ads - reject
+^https?://.*\.youtube\.com.*(adslots|player_ads|vast|adservice|promotion|sponsor|banner).* - reject
+
+# 其他激进拦截（可选启用，若视频加载异常请注释掉）
+# ^https?://.*\.youtube\.com.*ad.* - reject
+# ^https?://.*\.googlevideo\.com/initplayback.* - reject
+
+# 空响应更快拦截某些跟踪（可选）
+^https?://.*\.youtube\.com/generate_204 - reject-204
