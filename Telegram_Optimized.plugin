@@ -1,0 +1,33 @@
+#!name= Telegram 综合优化助手
+#!desc= 集成Web端去广告、第三方客户端广告屏蔽及隐私保护功能。v2025.01.11
+#!author= ResearchReportBot
+#!homepage= https://github.com/YourRepo
+#!icon= https://raw.githubusercontent.com/Toperlock/Quantumult/main/icon/telegram.png
+#!select= 开启Web去广告, 开启第三方去广告, 开启隐私保护
+
+
+# === 第三方客户端净化 (Nicegram/iMe/Turrit) ===
+# 阻断常见广告联盟域名
+DOMAIN-SUFFIX, admob.com, REJECT
+DOMAIN-SUFFIX, ads.google.com, REJECT
+DOMAIN-SUFFIX, doubleclick.net, REJECT
+DOMAIN-SUFFIX, unity3d.com, REJECT
+DOMAIN-SUFFIX, app-measurement.com, REJECT
+DOMAIN-SUFFIX, firebaseio.com, REJECT
+DOMAIN-SUFFIX, crashlytics.com, REJECT
+DOMAIN-SUFFIX, appsflyer.com, REJECT
+DOMAIN-SUFFIX, amplitude.com, REJECT
+DOMAIN-SUFFIX, adjust.com, REJECT
+
+# === 常见恶意Bot与钓鱼域名防护 ===
+DOMAIN-SUFFIX, t.me.malware-check.com, REJECT
+
+
+# === Web端去广告脚本 ===
+# 仅在访问 web.telegram.org 时触发，向页面注入去广告JS
+# 注意：你需要将下面的 script-path 替换为你自己托管 JS 文件的实际地址，或者使用本地路径
+http-response ^https?:\/\/web\.telegram\.org\/.* script-path=https://raw.githubusercontent.com/YourRepo/LoonScripts/main/tg_web_adblock_v2.js, requires-body=true, tag=TG Web AdBlock, timeout=10
+
+
+# 仅对Web端启用解密，保护原生App稳定性
+hostname = web.telegram.org
