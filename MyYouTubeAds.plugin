@@ -12,4 +12,4 @@ hostname = *.googlevideo.com, youtubei.googleapis.com
 
 [Script]
 # 拦截 YouTube 核心 API 响应
-http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(player|browse|next|search) script-path=https://raw.githubusercontent.com/nonexistent/placeholder.js, script-text-body=true, requires-body=true, tag=YT去广告核心
+http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(player|browse|next|search) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/MyYoutubeAds.js, script-text-body=true, requires-body=true, tag=YT去广告核心
