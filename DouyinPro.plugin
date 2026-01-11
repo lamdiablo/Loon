@@ -34,13 +34,13 @@ hostname = aweme.snssdk.com, amemv.com, *.douyin.com, *.snssdk.com, zijieapi.com
 # 1. 信息流去广告（核心功能）
 # 使用 http-response 并在响应返回 App 前进行修改
 # requires-body=true 是必须的，否则无法读取 JSON 内容
-http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/feed\/ script-path=https://gist.githubusercontent.com/YourUser/YourGistID/raw/douyin_clean.js, requires-body=true, timeout=30, tag=抖音去广告-Feed
+http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/feed\/ script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/douyin.js, requires-body=true, timeout=30, tag=抖音去广告-Feed
 
 # 2. 开屏广告清理
-http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/splash\/ script-path=https://gist.githubusercontent.com/YourUser/YourGistID/raw/douyin_clean.js, requires-body=true, timeout=30, tag=抖音去广告-Splash
+http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/splash\/ script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/douyin.js, requires-body=true, timeout=30, tag=抖音去广告-Splash
 
 # 3. 评论区广告清理
-http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/comment\/list\/ script-path=https://gist.githubusercontent.com/YourUser/YourGistID/raw/douyin_clean.js, requires-body=true, timeout=30, tag=抖音去广告-Comment
+http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/comment\/list\/ script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/douyin.js, requires-body=true, timeout=30, tag=抖音去广告-Comment
 
 # 4. 用户资料页清理（去除“我的订单”、“我的钱包”等推广入口）
-http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/user\/profile\/other\/ script-path=https://gist.githubusercontent.com/YourUser/YourGistID/raw/douyin_clean.js, requires-body=true, timeout=30, tag=抖音去广告-Profile
+http-response ^https?:\/\/aweme\.snssdk\.com\/aweme\/v1\/user\/profile\/other\/ script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/douyin.js, requires-body=true, timeout=30, tag=抖音去广告-Profile
