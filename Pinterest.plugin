@@ -17,7 +17,7 @@ DOMAIN-SUFFIX, ad.pinterest.com, REJECT
 
 # 核心净化脚本
 # 匹配 v3, v4, v5 版本的 feed, search, related 接口
-http-response ^https?://api\.pinterest\.com/v\d/(feeds/home|search/pins|pins/.*/related|visual_search) script-path=https://gist.githubusercontent.com/NetworkSecLab/pinterest_script.js, requires-body=true, tag=Pinterest净化, timeout=30
+http-response ^https?://api\.pinterest\.com/v\d/(feeds/home|search/pins|pins/.*/related|visual_search) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/pinterest_script.js, requires-body=true, tag=Pinterest净化, timeout=30
 
 
 hostname = api.pinterest.com
