@@ -1,0 +1,22 @@
+#!name=YouTube AdBlock (Expert Config)
+#!desc=移除 YouTube 视频流广告、首页横幅及 Shorts 广告。请务必安装并信任 CA 证书，且在 Loon 设置中开启 MITM 功能。
+#!author=Community Optimized
+#!icon=https://raw.githubusercontent.com/Loolin233/Loon/main/Icon/YouTube.png
+#!date=2026-01-11
+
+[Rule]
+# 阻断 QUIC 协议，迫使 YouTube 使用 TCP (这是去广告生效的关键)
+AND, ((PROTOCOL,UDP), (DEST-PORT,443)), REJECT
+
+[Rewrite]
+# 这里的正则用于匹配 YouTube 的广告组件 URL
+^https:\/\/[\s\S]*\.googlevideo\.com/.*&(oad|ctier) _ REJECT
+
+[Script]
+# 引用社区长期维护的高质量脚本 (推荐使用 Maasea 或类似的稳定源)
+# 注意：以下脚本地址仅为示例，建议使用 GitHub 上 stars 最多的活跃项目链接
+http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel\/reel_watch_sequence|guide|account\/get_setting) script-path=https://raw.githubusercontent.com/Maasea/sgmodule/master/Script/Youtube/youtube.js, requires-body=true, binary-body-mode=true, tag=YouTube去广告
+
+[MITM]
+# 必须对以下域名进行主机名解密
+hostname = *.googlevideo.com, youtubei.googleapis.com, *.youtube.com
