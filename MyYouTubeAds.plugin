@@ -1,10 +1,11 @@
-#!name=自制YouTube去广告(修正版)
-#!desc=包含请求头修改(强制JSON)与响应清洗，需配合本地脚本使用。
+#!name=自制YouTube去广告
+#!desc=本地脚本版：包含强制JSON请求头修改与广告清洗。
 #!author=SelfMade
 #!icon=https://www.youtube.com/s/mobile/hires/assets/home/youtube_192.png
 
 [Rule]
-# 拦截 HTTP3/QUIC，强制走 TCP (必须)
+# ⚠️ 核心规则：拦截 HTTP3/QUIC 协议
+# 必须强制 YouTube 走 TCP，否则 MitM 无法解密，脚本无法运行
 AND,((OR,((DOMAIN-SUFFIX,youtube.com),(DOMAIN-SUFFIX,googlevideo.com))), (PROTOCOL,UDP)),REJECT
 
 [MitM]
