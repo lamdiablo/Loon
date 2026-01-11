@@ -12,7 +12,7 @@ hostname = *.googlevideo.com, youtubei.googleapis.com
 
 [Script]
 # 拦截请求：修改 Header 强制 JSON
-http-request ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel) script-path=my_yt_ads.js, requires-body=false, tag=YT_Req
+http-request ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/my_yt_ads.js, requires-body=false, tag=YT_Req
 
 # 拦截响应：清洗广告数据
-http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel) script-path=my_yt_ads.js, requires-body=true, tag=YT_Res
+http-response ^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/my_yt_ads.js, requires-body=true, tag=YT_Res
