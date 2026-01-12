@@ -1,12 +1,12 @@
 /*
-Pinterest 去推广 Pins 详细优化版（2026 稳定彻底版）
+Pinterest 彻底去广告脚本（2026 增强版 - 针对购物/产品广告）
 适用于 Loon
-覆盖更多接口与字段，平衡彻底性与稳定性
+过滤 promoted + 购物推荐 + 详情页购物 carousel
 */
 
 let url = $request.url;
 
-// 放宽匹配：所有 resource get 接口（覆盖首页、搜索、看板等 Feed）
+// 覆盖所有 resource get 接口（包括首页、搜索、详情页 PinDetailResource 等）
 if (!url.includes("/resource/") || !url.toLowerCase().includes("get")) {
   $done({});
 }
@@ -21,65 +21,47 @@ try {
   let modified = false;
   let filteredCount = 0;
 
-  // 主路径：resource_response.data（最常见）
+  // 主数据路径过滤（Feed 中的 promoted / shopping pins）
   if (obj.resource_response && Array.isArray(obj.resource_response.data)) {
     let originalData = obj.resource_response.data;
     let filteredData = originalData.filter(item => {
-      // 明确推广标志（核心）
-      if (item.is_promoted === true || 
-          item.promoted === true || 
-          item.is_promoted_ad === true || 
-          item.promoted_is_removable === true) {
+      // 经典推广
+      if (item.is_promoted === true || item.promoted === true || item.is_promoted_ad === true) {
         filteredCount++;
         return false;
       }
-
-      // 其他广告元数据
-      if (item.ad_meta || 
-          item.ads_metadata || 
-          item.ads_info || 
-          item.ads_tracking_info || 
-          item.promotion || 
-          item.promoter || 
-          item.promoted_by) {
+      // 广告元数据
+      if (item.ad_meta || item.ads_metadata || item.ads_info || item.promotion || item.promoter) {
         filteredCount++;
         return false;
       }
-
-      // tracking_params 中的广告 ID（隐形推广常见来源）
-      if (item.tracking_params && 
-          (item.tracking_params.ad_id || 
-           item.tracking_params.creative_id || 
-           item.tracking_params.campaign_id || 
-           item.tracking_params.upid || 
-           item.tracking_params.promoted_pin_id)) {
+      // tracking_params 广告 ID
+      if (item.tracking_params && (item.tracking_params.ad_id || item.tracking_params.creative_id || item.tracking_params.campaign_id)) {
         filteredCount++;
         return false;
       }
-
-      // 类型或子对象明确为广告/推广
-      if (item.type && (item.type.includes("promoted") || item.type.includes("ad") || item.type === "shopping_ad")) {
+      // 购物/产品 Pin 标志（关键增强：过滤 Etsy/Amazon/Wayfair 等购物推荐）
+      if (item.price || item.price_info || item.price_value || item.currency_code || 
+          item.buyable || item.is_buyable_pin || item.buyable_product || 
+          item.shopping_flags || item.has_shopping_data || 
+          item.shop_the_look || item.shop_the_look_items || 
+          (item.products && Array.isArray(item.products) && item.products.length > 0) ||
+          (item.rich_summary && item.rich_summary.price)) {
         filteredCount++;
         return false;
       }
-      if (item.native_ad_data || item.shopping_ad_data || item.product_promotion) {
+      // 类型包含购物/广告
+      if (item.type && (item.type.includes("promoted") || item.type.includes("ad") || item.type.includes("shopping"))) {
         filteredCount++;
         return false;
       }
-
-      // 富摘要中的推广（部分购物广告）
-      if (item.rich_metadata && item.rich_metadata.is_promoted) {
-        filteredCount++;
-        return false;
-      }
-
       return true;
     });
 
-    // 稳定性：如果过滤太多导致数组近空，保留至少 5 条原数据（避免加载失败）
-    if (filteredData.length < 5 && originalData.length > 10) {
-      console.log(`Pinterest 脚本警告：过滤过多 (${filteredCount})，保留部分原数据避免空白`);
-      filteredData = originalData.slice(0, 10); // 保留前10条，包含可能广告但至少能加载
+    // 稳定性保护
+    if (filteredData.length < 3 && originalData.length > 8) {
+      console.log(`Pinterest 警告：购物过滤过多 (${filteredCount})，保留部分数据避免空白`);
+      filteredData = originalData.slice(0, 8); // 保留前8条
       filteredCount = 0;
     } else {
       obj.resource_response.data = filteredData;
@@ -87,23 +69,44 @@ try {
     }
   }
 
-  // 额外路径处理（stories、results 等，部分视频/相关推荐广告）
-  if (obj.resource_response && Array.isArray(obj.resource_response.stories)) {
-    obj.resource_response.stories = obj.resource_response.stories.filter(item => !(item.is_promoted === true || (item.tracking_params && item.tracking_params.ad_id)));
-    modified = true;
+  // 额外处理详情页/推荐中的购物 carousel（直接清空常见购物推荐路径）
+  if (obj.resource_response) {
+    if (Array.isArray(obj.resource_response.shopping_carousel)) {
+      filteredCount += obj.resource_response.shopping_carousel.length;
+      obj.resource_response.shopping_carousel = [];
+      modified = true;
+    }
+    if (Array.isArray(obj.resource_response.merchandising_pins)) {
+      filteredCount += obj.resource_response.merchandising_pins.length;
+      obj.resource_response.merchandising_pins = [];
+      modified = true;
+    }
+    if (Array.isArray(obj.resource_response.visual_annotation_products) || Array.isArray(obj.resource_response.similar_products)) {
+      filteredCount += (obj.resource_response.visual_annotation_products || obj.resource_response.similar_products || []).length;
+      obj.resource_response.visual_annotation_products = [];
+      obj.resource_response.similar_products = [];
+      modified = true;
+    }
+    if (Array.isArray(obj.resource_response.shopping_recommendations)) {
+      filteredCount += obj.resource_response.shopping_recommendations.length;
+      obj.resource_response.shopping_recommendations = [];
+      modified = true;
+    }
   }
-  if (obj.resource_response && obj.resource_response.results && Array.isArray(obj.resource_response.results)) {
-    obj.resource_response.results = obj.resource_response.results.filter(item => !(item.is_promoted === true));
+
+  // stories / results 等备用路径
+  if (obj.resource_response && Array.isArray(obj.resource_response.stories)) {
+    obj.resource_response.stories = obj.resource_response.stories.filter(item => !(item.is_promoted || item.price_info));
     modified = true;
   }
 
   if (modified) {
     body = JSON.stringify(obj);
-    console.log(`Pinterest 成功过滤 ${filteredCount} 个广告项`);
+    console.log(`Pinterest 成功过滤 ${filteredCount} 个广告/购物项（包括详情页 carousel）`);
   }
 
   $done({ body });
 } catch (e) {
   console.log("Pinterest 脚本错误，放行原响应: " + e);
-  $done({}); // 错误直接放行，避免 App 崩溃
+  $done({});
 }
