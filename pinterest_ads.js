@@ -61,4 +61,66 @@ try {
         return false;
       }
       if (item.attribution && item.attribution.provider_name && 
-          (item.attribution.provider_name
+          (item.attribution.provider_name.toLowerCase().includes("perigold") || 
+           item.attribution.provider_name.toLowerCase().includes("redbubble") || 
+           item.attribution.provider_name.toLowerCase().includes("etsy") || 
+           item.attribution.provider_name.toLowerCase().includes("amazon") || 
+           item.attribution.provider_name.toLowerCase().includes("wayfair"))) {
+        filteredCount++;
+        return false;
+      }
+      // 价格/购物表面数据
+      if (item.price_info || item.price_value || item.shopping_surface_data || item.shop_the_look) {
+        filteredCount++;
+        return false;
+      }
+
+      return true;
+    });
+
+    // 稳定性：仅当过滤过多时保留部分（避免 Feed 空白）
+    if (filteredData.length < 5 && originalData.length > 15) {
+      console.log(`Pinterest 警告：瀑布流过滤过多 (${filteredCount})，保留部分数据避免空白`);
+      filteredData = originalData.slice(0, 12);
+      filteredCount = 0;
+    } else {
+      obj.resource_response.data = filteredData;
+      modified = true;
+    }
+  }
+
+  // 详情页购物 carousel 清空（保持不动，彻底移除）
+  if (obj.resource_response) {
+    if (Array.isArray(obj.resource_response.shopping_carousel)) {
+      filteredCount += obj.resource_response.shopping_carousel.length;
+      obj.resource_response.shopping_carousel = [];
+      modified = true;
+    }
+    if (Array.isArray(obj.resource_response.merchandising_pins)) {
+      filteredCount += obj.resource_response.merchandising_pins.length;
+      obj.resource_response.merchandising_pins = [];
+      modified = true;
+    }
+    if (Array.isArray(obj.resource_response.visual_annotation_products) || Array.isArray(obj.resource_response.similar_products)) {
+      filteredCount += (obj.resource_response.visual_annotation_products || obj.resource_response.similar_products || []).length;
+      obj.resource_response.visual_annotation_products = [];
+      obj.resource_response.similar_products = [];
+      modified = true;
+    }
+    if (Array.isArray(obj.resource_response.shopping_recommendations)) {
+      filteredCount += obj.resource_response.shopping_recommendations.length;
+      obj.resource_response.shopping_recommendations = [];
+      modified = true;
+    }
+  }
+
+  if (modified) {
+    body = JSON.stringify(obj);
+    console.log(`Pinterest 成功过滤 ${filteredCount} 个广告/购物项（重点瀑布流商家 Pin）`);
+  }
+
+  $done({ body });
+} catch (e) {
+  console.log("Pinterest 脚本错误，放行原响应: " + e);
+  $done({});
+}
