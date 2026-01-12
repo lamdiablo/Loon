@@ -1,22 +1,22 @@
-#!name=Pinterest去广告
-#!desc=移除Pinterest瀑布流、搜索结果及推荐中的推广广告。
-#!author=LoonUser
-#!icon=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Pinterest.png
-#!date=2024-05-20
+#!name=Pinterest Pro 净化 (v3.2)
+#!desc=移除 Pinterest 首页、搜索页、详情页中的 Promoted 广告、Shop the look 购物模块、商品推荐及相关用户推荐。
+#!author=NetworkSecLab
+#!icon=https://raw.githubusercontent.com/deezertidal/private/main/icons/pinterest.png
+#!date=2026-01-12
 
-[Rule]
-# 拦截广告追踪与分析域名
-DOMAIN, ads-api.pinterest.com, REJECT
-DOMAIN, ctable.pinterest.com, REJECT
-DOMAIN, adex.pinterest.com, REJECT
-DOMAIN, measurement.pinterest.com, REJECT
+
+# 阻断追踪与统计域名 (保护隐私并加速)
+DOMAIN, trk.pinterest.com, REJECT
+DOMAIN, ads.pinterest.com, REJECT
 DOMAIN, analytics.pinterest.com, REJECT
 DOMAIN, log.pinterest.com, REJECT
+DOMAIN, ctae.pinterest.com, REJECT
+DOMAIN-SUFFIX, ad.pinterest.com, REJECT
 
-[MitM]
+
+# 核心净化脚本
+# 正则匹配 v3 API 的主要内容接口 (Feed, Search, Related, Resource, Visual Search)
+http-response ^https?://api\.pinterest\.com/v3/(feeds|search|pins|resource|visual_search|board)/ script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/pinterest_ads.js, requires-body=true, tag=Pinterest_Pro_Block, timeout=30  重试  错误原因
+
+
 hostname = api.pinterest.com
-
-[Script]
-# 拦截主要 API 接口
-# script-path 需对应你保存 JS 文件的实际名称
-http-response ^https?:\/\/api\.pinterest\.com\/v3\/(feeds|batch|search|pidgets) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/pinterest_ads.js, requires-body=true, timeout=10, tag=Pinterest去广告
