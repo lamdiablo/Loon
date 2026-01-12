@@ -1,13 +1,12 @@
 /*
-Pinterest 彻底去广告脚本（2026 瀑布流优化版）
+Pinterest 彻底去广告脚本（2026 增强版 - 针对购物/产品广告）
 适用于 Loon
-重点过滤 Feed 瀑布流中的购物/商家 Pin（如 Perigold、Redbubble）
-详情页 carousel 保持原清除逻辑
+过滤 promoted + 购物推荐 + 详情页购物 carousel
 */
 
 let url = $request.url;
 
-// 覆盖所有 resource get 接口（首页/搜索 Feed + 详情页）
+// 覆盖所有 resource get 接口（包括首页、搜索、详情页 PinDetailResource 等）
 if (!url.includes("/resource/") || !url.toLowerCase().includes("get")) {
   $done({});
 }
@@ -22,7 +21,7 @@ try {
   let modified = false;
   let filteredCount = 0;
 
-  // 主数据路径：Feed 瀑布流过滤（增强购物 Pin）
+  // 主数据路径过滤（Feed 中的 promoted / shopping pins）
   if (obj.resource_response && Array.isArray(obj.resource_response.data)) {
     let originalData = obj.resource_response.data;
     let filteredData = originalData.filter(item => {
@@ -32,7 +31,7 @@ try {
         return false;
       }
       // 广告元数据
-      if (item.ad_meta || item.ads_metadata || item.ads_info || item.promotion) {
+      if (item.ad_meta || item.ads_metadata || item.ads_info || item.promotion || item.promoter) {
         filteredCount++;
         return false;
       }
@@ -41,47 +40,28 @@ try {
         filteredCount++;
         return false;
       }
-
-      // 【关键增强：瀑布流购物 Pin 过滤】
-      // 聚合购物数据（Perigold/Redbubble 等商家 Pin 几乎都有此字段）
-      if (item.aggregated_pin_data || 
-          (item.aggregated_pin_data && (item.aggregated_pin_data.commerce_data || item.aggregated_pin_data.product_data))) {
+      // 购物/产品 Pin 标志（关键增强：过滤 Etsy/Amazon/Wayfair 等购物推荐）
+      if (item.price || item.price_info || item.price_value || item.currency_code || 
+          item.buyable || item.is_buyable_pin || item.buyable_product || 
+          item.shopping_flags || item.has_shopping_data || 
+          item.shop_the_look || item.shop_the_look_items || 
+          (item.products && Array.isArray(item.products) && item.products.length > 0) ||
+          (item.rich_summary && item.rich_summary.price)) {
         filteredCount++;
         return false;
       }
-      // 商业/可购买标志
-      if (item.commerce_product_info || item.buyable_product_info || item.product_pin_data ||
-          item.is_buyable_pin || item.buyable || item.has_shopping_data) {
+      // 类型包含购物/广告
+      if (item.type && (item.type.includes("promoted") || item.type.includes("ad") || item.type.includes("shopping"))) {
         filteredCount++;
         return false;
       }
-      // 域名商业标志或商家 attribution
-      if (item.domain_meta && item.domain_meta.is_commerce === true) {
-        filteredCount++;
-        return false;
-      }
-      if (item.attribution && item.attribution.provider_name && 
-          (item.attribution.provider_name.toLowerCase().includes("perigold") || 
-           item.attribution.provider_name.toLowerCase().includes("redbubble") || 
-           item.attribution.provider_name.toLowerCase().includes("etsy") || 
-           item.attribution.provider_name.toLowerCase().includes("amazon") || 
-           item.attribution.provider_name.toLowerCase().includes("wayfair"))) {
-        filteredCount++;
-        return false;
-      }
-      // 价格/购物表面数据
-      if (item.price_info || item.price_value || item.shopping_surface_data || item.shop_the_look) {
-        filteredCount++;
-        return false;
-      }
-
       return true;
     });
 
-    // 稳定性：仅当过滤过多时保留部分（避免 Feed 空白）
-    if (filteredData.length < 5 && originalData.length > 15) {
-      console.log(`Pinterest 警告：瀑布流过滤过多 (${filteredCount})，保留部分数据避免空白`);
-      filteredData = originalData.slice(0, 12);
+    // 稳定性保护
+    if (filteredData.length < 3 && originalData.length > 8) {
+      console.log(`Pinterest 警告：购物过滤过多 (${filteredCount})，保留部分数据避免空白`);
+      filteredData = originalData.slice(0, 8); // 保留前8条
       filteredCount = 0;
     } else {
       obj.resource_response.data = filteredData;
@@ -89,7 +69,7 @@ try {
     }
   }
 
-  // 详情页购物 carousel 清空（保持不动，彻底移除）
+  // 额外处理详情页/推荐中的购物 carousel（直接清空常见购物推荐路径）
   if (obj.resource_response) {
     if (Array.isArray(obj.resource_response.shopping_carousel)) {
       filteredCount += obj.resource_response.shopping_carousel.length;
@@ -114,9 +94,15 @@ try {
     }
   }
 
+  // stories / results 等备用路径
+  if (obj.resource_response && Array.isArray(obj.resource_response.stories)) {
+    obj.resource_response.stories = obj.resource_response.stories.filter(item => !(item.is_promoted || item.price_info));
+    modified = true;
+  }
+
   if (modified) {
     body = JSON.stringify(obj);
-    console.log(`Pinterest 成功过滤 ${filteredCount} 个广告/购物项（重点瀑布流商家 Pin）`);
+    console.log(`Pinterest 成功过滤 ${filteredCount} 个广告/购物项（包括详情页 carousel）`);
   }
 
   $done({ body });
