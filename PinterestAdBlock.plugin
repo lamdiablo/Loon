@@ -1,16 +1,22 @@
-[General]
+#!name=Pinterest去广告
+#!desc=移除Pinterest瀑布流、搜索结果及推荐中的推广广告。
+#!author=LoonUser
+#!icon=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Pinterest.png
+#!date=2024-05-20
 
-[MITM]
-hostname = *.pinterest.com, *.pinimg.com, ads.pinterest.com, analytics.pinterest.com, ct.pinterest.com, log.pinterest.com, s.pinterest.com, trc.taboola.com
+[Rule]
+# 拦截广告追踪与分析域名
+DOMAIN, ads-api.pinterest.com, REJECT
+DOMAIN, ctable.pinterest.com, REJECT
+DOMAIN, adex.pinterest.com, REJECT
+DOMAIN, measurement.pinterest.com, REJECT
+DOMAIN, analytics.pinterest.com, REJECT
+DOMAIN, log.pinterest.com, REJECT
 
-[Rewrite]
-# 安全阻塞明确广告/追踪域名（不误伤主接口）
-^https?://ads\.pinterest\.com/ reject
-^https?://analytics\.pinterest\.com/ reject
-^https?://ct\.pinterest\.com/ reject
-^https?://log\.pinterest\.com/ reject
-^https?://trc\.taboola\.com/ reject
+[MitM]
+hostname = api.pinterest.com
 
 [Script]
-# 覆盖首页/搜索/详情页所有 Feed 接口
-Pinterest 去广告 = type=http-response, pattern=^https?://.*\.pinterest\.com/.*/resource/.*Resource/get$, requires-body=true, max-size=-1, timeout=60, script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/pinterest_ads.js
+# 拦截主要 API 接口
+# script-path 需对应你保存 JS 文件的实际名称
+http-response ^https?:\/\/api\.pinterest\.com\/v3\/(feeds|batch|search|pidgets) script-path=https://raw.githubusercontent.com/lamdiablo/Loon/refs/heads/main/pinterest_ads.js, requires-body=true, timeout=10, tag=Pinterest去广告
