@@ -1,0 +1,16 @@
+[General]
+
+[MITM]
+hostname = *.pinterest.com, *.pinimg.com, ads.pinterest.com, analytics.pinterest.com, ct.pinterest.com, log.pinterest.com, s.pinterest.com, trc.taboola.com
+
+[Rewrite]
+# 安全阻塞明确广告/追踪域名
+^https?://ads\.pinterest\.com/ reject
+^https?://analytics\.pinterest\.com/ reject
+^https?://ct\.pinterest\.com/ reject
+^https?://log\.pinterest\.com/ reject
+^https?://trc\.taboola\.com/ reject
+
+[Script]
+# 超宽松 pattern 覆盖所有 v3_ 和 resource 接口（包括 carousel/related）
+Pinterest 去广告 = type=http-response, pattern=^https?://.*\.pinterest\.com/(v3/|resource/|api/).*get.*, requires-body=true, max-size=-1, timeout=60, script-path=pinterest_remove_promoted.js
